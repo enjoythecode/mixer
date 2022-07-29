@@ -19,12 +19,13 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"runtime/pprof"
 	"time"
 
 	pb "github.com/datacommonsorg/mixer/internal/proto"
 )
 
-const numTestTimes = 4
+const numTestTimes = 1
 
 // TestDriver drives various tests based on environment flags.
 func TestDriver(
@@ -50,6 +51,17 @@ func goldenTest(
 	return nil
 }
 
+func writeProfile(fname string) {
+	f, err := os.Create(fname)
+	if err != nil {
+		fmt.Errorf("could not create memory profile: ", err)
+	}
+	defer f.Close() // error handling omitted for example
+	runtime.GC() // get up-to-date statistics
+	if err := pprof.WriteHeapProfile(f); err != nil {
+		fmt.Errorf("could not write memory profile: ", err)
+	}
+}
 func latencyTest(
 	apiName string,
 	opt *TestOption,
@@ -63,7 +75,9 @@ func latencyTest(
 	// Run multiple times to reduce fluctuations.
 	for i := 0; i < numTestTimes; i++ {
 		startTime := time.Now()
+		writeProfile(apiName + "before.autolat.txt")
 		testSuite(mixer, recon, true /* latencyTest */)
+		writeProfile(apiName + "after.autolat.txt")
 		durationStore = append(durationStore, time.Since(startTime).Seconds())
 	}
 	value := meanValue(durationStore)

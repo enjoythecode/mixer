@@ -55,3 +55,6 @@ deploy/overlays/**/kustomize-build.yaml
 deploy/overlays/**/kustomize-deployed.yaml
 
 deploy/git/mixer_hash.txt
+
+# automated memory profiling  -- [ the name for the extension is temp ]
+*autolat.txt
