@@ -20,6 +20,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mixer-grpc
+  namespace: sinan
 spec:
   replicas: 1
   strategy:
@@ -64,6 +65,7 @@ spec:
             - --import_group_tables=$(IMPORT_GROUP_TABLES)
             - --schema_path=/datacommons/mapping
             - --memdb_path=/datacommons/memdb
+            - --httpprof_port=6060
           volumeMounts:
             - name: schema-mapping
               mountPath: /datacommons/mapping
@@ -101,6 +103,9 @@ spec:
               value: "dummy"
           ports:
             - containerPort: 12345
+              name: grpc
+            - containerPort: 6060
+              name: net-http-pprof # https://pkg.go.dev/net/http/pprof
           readinessProbe:
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:12345"]
@@ -115,3 +120,57 @@ spec:
               command: ["/bin/grpc_health_probe", "-addr=:12345"]
             periodSeconds: 10
             failureThreshold: 30
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: memory-profiler-grpc
+  namespace: sinan
+spec:
+  type: NodePort
+  ports:
+    - name: grpc
+      port: 12345
+      targetPort: 12345
+      protocol: TCP
+  selector:
+    app: mixer-grpc
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: memory-profiler-pprof
+  namespace: sinan
+spec:
+  type: NodePort
+  ports:
+    - name: pprof
+      port: 6060
+      targetPort: 6060
+      protocol: TCP
+ selector:
+    app: mixer-grpc
+
+---
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: profile-mixer-memory
+spec:
+  template:
+    metadata:
+      name: profile-mixer-memory
+    spec:
+      containers:
+      - name: pi
+        image: gcr.io/datcom-ci/datacommons-mixer:latest # replace with Alex's image tag that he is creating right now
+        command: ["go", "run", "test/http_memprof/http_memprof.go"]
+      # Do not restart containers after they exit
+      restartPolicy: Never
+  # of retries before marking as failed.
+  backoffLimit: 4
