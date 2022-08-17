@@ -157,20 +157,41 @@ spec:
 
 ---
 
-apiVersion: batch/v1
-kind: Job
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: profile-mixer-memory
+  namespace: sinan
 spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Maximum number of pods that can be created over the desired number of pods.
+      maxSurge: 1
+      # Maximum number of pods that can be unavailable during the update process
+      # Environment have different number of pods, this is roughly 8% in prod.
+      maxUnavailable: 5
+  selector:
+    matchLabels:
+      app: profile-mixer-memory
   template:
     metadata:
-      name: profile-mixer-memory
+      labels:
+        app: profile-mixer-memory
     spec:
+      # This k8s service account binds to the GCP service account, and used
+      # for GKE Workload Identity: https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity
+      serviceAccountName: mixer-ksa
       containers:
-      - name: pi
-        image: us-docker.pkg.dev/datcom-ci/mixer/server:http-pprof
-        command: ["go", "run", "test/http_memprof/http_memprof.go"]
-      # Do not restart containers after they exit
-      restartPolicy: Never
-  # of retries before marking as failed.
-  backoffLimit: 4
+        - name: mixer
+          image: us-docker.pkg.dev/datcom-ci/mixer/server:http-pprof
+          imagePullPolicy: Always
+          resources:
+            limits:
+              memory: "2G"
+            requests:
+              memory: "2G"
+          # meant for manually running the go run ... command
+          command: ["tail"]
+          args: ["-f", "/dev/null"]
