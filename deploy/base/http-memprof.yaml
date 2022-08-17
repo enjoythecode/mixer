@@ -51,7 +51,7 @@ spec:
             name: memdb-config
       containers:
         - name: mixer
-          image: gcr.io/datcom-ci/datacommons-mixer:latest
+          image: us-docker.pkg.dev/datcom-ci/mixer/server:http-pprof
           imagePullPolicy: Always
           resources:
             limits:
@@ -168,7 +168,7 @@ spec:
     spec:
       containers:
       - name: pi
-        image: gcr.io/datcom-ci/datacommons-mixer:latest # replace with Alex's image tag that he is creating right now
+        image: us-docker.pkg.dev/datcom-ci/mixer/server:http-pprof
         command: ["go", "run", "test/http_memprof/http_memprof.go"]
       # Do not restart containers after they exit
       restartPolicy: Never
